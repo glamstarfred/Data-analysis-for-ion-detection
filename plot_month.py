@@ -25,7 +25,7 @@ from dateutil.parser import parse
 import glob
 import tkinter                 
 from tkinter import filedialog as fd
-#outpath = "../Level1/"     #创建结果保存目录，需要自己修改，默认位置是程序所在位置
+#outpath = "../Level1/"     #save path
 
 font = {'family' : 'Arial',
         'weight' : 'light',
@@ -63,7 +63,7 @@ def connect(filename):
     df_1 = df[colunm]
     df_total = df_1.copy()
     df_total['Date Time (UTC)'] = pd.to_datetime(df_1['Date Time (UTC)'], format='%Y-%m-%d/%H:%M:%S')
-    #将时间格式转换为datetime，便于后续操作
+    #convert the time to datetime format
     grouped_df = df_total.groupby('Group Number')
     for group_number, group_df in grouped_df:
         for channel in channels:
@@ -76,12 +76,12 @@ def connect(filename):
 def find_wnoise(df): 
     df_temp = pd.DataFrame()
     for channel in channels:
-        df_filtered = df[(df['Step Number'] >= 1920) & (df['Step Number'] <= 2048)] #此为无电压扫描区
+        df_filtered = df[(df['Step Number'] >= 1920) & (df['Step Number'] <= 2048)] #this is the zone of non-voltage detection
 
         df_temp = df_filtered.groupby('Group Number')[channel].mean()
         
-        # 排除偏差很大的数据
-        std_threshold = 3  # 设置偏差阈值
+        # exclude numbers with large error
+        std_threshold = 3  
         mean_value = df_temp.mean()
         std_value = df_temp.std()
         df_temp = df_temp[(df_temp >= mean_value - std_threshold * std_value) & (df_temp <= mean_value + std_threshold * std_value)]
@@ -96,7 +96,7 @@ def filt_time(df,start_time,end_time):
     filtered_df = df[(df['Date Time (UTC)'].dt.time >= start) & (df['Date Time (UTC)'].dt.time <= end)]
     return filtered_df
 
-def plot_time(df,channel): #做总计数和时间的关系图
+def plot_time(df,channel): #plot of total number of ion events vs time
     time = df["Date Time (UTC)"]
     num = df[channel]
     XX = time
@@ -121,7 +121,7 @@ def uv_noise(df):
     for group_number, group_df in grouped_df:
         for channel in channels:
             
-            matrix = group_df[channel].values.reshape(32, 64) #将数值排列成矩阵便于操作
+            matrix = group_df[channel].values.reshape(32, 64) 
             for i in range(32):
                 if i % 2 == 0:
                     row_avg = np.mean(matrix[i, :25])
@@ -138,22 +138,22 @@ def flux(df):
     df_sum_t = pd.DataFrame()
     df_sum2 = pd.DataFrame()
 
-    # 将数据处理成合适的格式：
+    # data correction
     grouped_df = df.groupby('Group Number')
     for group_number, group_df in grouped_df:
         for channel in channels:
             matrix = group_df[channel].values.reshape(32, 64)
-            # 排除遮挡
+            # exclude the blocking of satellite
             matrix = matrix[8:]
-            # 反转奇数行
+            # reverse odd rows
             matrix[1::2] = matrix[1::2, ::-1]
-            # 对每列求和
+            # sum each columns
             column_sums = matrix.sum(axis=0)
-            # 将求和结果添加到数据框中
+            # add the sum to dataframe
             df_sum2[channel] = column_sums
         df_sum2['Date Time (UTC)'] = group_df.iloc[0]['Date Time (UTC)']
         df_sum2['Group Number'] = [group_number] *64
-        df_sum2['Step Number'] = range(0,64) #填上相应的时间、Group和台阶数
+        df_sum2['Step Number'] = range(0,64) #add time group number and step number
         
         df_sum_t = pd.concat([df_sum_t, df_sum2], ignore_index=True)
             
@@ -161,7 +161,7 @@ def flux(df):
 
     df_sum_t['Total Number'] = df_sum_t[channels].sum(axis=1)
     
-    #计算通量
+    #calculating ion flux
     grouped_df = df_sum_t.groupby('Step Number')
     for step_number, group_df in grouped_df:
         #df_sum_t.loc[group_df.index, 'Total Flux'] = group_df['Total Number'] / (0.2 * G_factor * E_level[step_number]/1000.0)
@@ -182,7 +182,7 @@ def flux(df):
         df_spec = df_spec1.pivot(index='Energy Level', columns='Date Time (UTC)', values=channel)
         df_spec = df_spec.sort_values(by='Energy Level', ascending=False)     
             
-        df_spec = df_spec.head(42)  #取高能段的离子数据，一般是大于100eV
+        df_spec = df_spec.head(42)  #only take spectrum with large energy, usually over 100eV
         
     return df_spec, dates
 
@@ -217,20 +217,19 @@ if __name__ == "__main__":
         combined_dates.append(dates)
         
     for channel in channels:    
-        #作图
         fig, ax = plt.subplots(figsize=(15, 15))
-        # 绘制色块图，设置vmin和vmax可以调颜色
+        # color setting
         im = ax.imshow(combined_df.values, norm=colors.LogNorm(vmin=1e+1, vmax=combined_df.values.max()),cmap='jet')
-        # 设置横纵坐标刻度
+
         ax.set_xticks(np.linspace(0, len(combined_df.columns)-1, 4))
         ax.set_yticks(np.linspace(0, len(combined_df.index)-1, 4))
-        # 设置刻度标签
         ax.set_xticklabels([dates.iloc[int(i)].strftime('%H:%M:%S') for i in ax.get_xticks()], ha='right')
         ax.set_yticklabels([E_level[::-1][int(i)] for i in ax.get_yticks()])
-        # 添加颜色条
+
+        #color bar
         cbar = fig.colorbar(im, ax=ax, format='%.0e', shrink=0.25)
         cbar.ax.tick_params(labelsize=12)
-        # 设置图表标题和坐标轴标签
+
         ax.set_title('Flux ' + channel)
         ax.set_xlabel('Date Time (UTC)')
         ax.set_ylabel('Energy Level\eV')

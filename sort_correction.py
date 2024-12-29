@@ -15,7 +15,7 @@ import glob
 import time
 import tkinter                 
 from tkinter import filedialog as fd
-#outpath = "../Level1/"     #创建结果保存目录
+#outpath = "../Level1/"     #specify the save path
 #if not os.path.exists(outpath):
     #os.mkdir(outpath)
 
@@ -26,7 +26,7 @@ desired_columns = [
     ]
 
 
-df = pd.read_csv("BD3G03__2021-09-24_GEO_coordinates.csv")
+# df = pd.read_csv("BD3G03__2021-09-24_GEO_coordinates.csv")
 
 def level0_to_level1(file):
     df = pd.read_csv(file)
@@ -76,7 +76,7 @@ def level0_to_level1(file):
     
     
     Time_Step_add = np.arange( 2048*256*2 ) * 0.311401
-    Time_Group_add_gap = np.arange(256*2)*4.75      ####跨越group +4.75s
+    Time_Group_add_gap = np.arange(256*2)*4.75      #make a gap of +4.75s for each group to avoid error
     Time_Group_add_gap = np.tile(Time_Group_add_gap,(2048,1))
     Time_Group_add = Time_Group_add_gap.T.flatten()
     Time_add = Time_Group_add + Time_Step_add
